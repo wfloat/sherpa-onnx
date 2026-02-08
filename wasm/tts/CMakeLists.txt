@@ -1,9 +1,10 @@
 if(NOT $ENV{SHERPA_ONNX_IS_USING_BUILD_WASM_SH})
-  message(FATAL_ERROR "Please use ./build-wasm-simd-tts.sh to build for wasm TTS")
+  message(FATAL_ERROR "Please use ./build-wasm-simd-tts.sh or ./build-wasm-nosimd-tts.sh to build for wasm TTS")
 endif()
 
-if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets/tokens.txt")
-  message(FATAL_ERROR "Please read ${CMAKE_CURRENT_SOURCE_DIR}/assets/README.md before you continue")
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets/model.onnx")
+message(WARNING "model.onnx not found; expected to be downloaded at runtime")
+#  message(FATAL_ERROR "Please read ${CMAKE_CURRENT_SOURCE_DIR}/assets/README.md before you continue")
 endif()
 
 set(exported_functions
@@ -16,6 +17,7 @@ set(exported_functions
   SherpaOnnxOfflineTtsNumSpeakers
   SherpaOnnxOfflineTtsSampleRate
   SherpaOnnxWriteWave
+  SherpaOnnxGetVersionStr
 )
 set(mangled_exported_functions)
 foreach(x IN LISTS exported_functions)
@@ -28,8 +30,13 @@ include_directories(${CMAKE_SOURCE_DIR})
 set(MY_FLAGS " -s FORCE_FILESYSTEM=1 -s INITIAL_MEMORY=512MB -s ALLOW_MEMORY_GROWTH=1")
 string(APPEND MY_FLAGS " -sSTACK_SIZE=10485760 ") # 10MB
 string(APPEND MY_FLAGS " -sEXPORTED_FUNCTIONS=[_CopyHeap,_malloc,_free,${all_exported_functions}] ")
+# string(APPEND MY_FLAGS "--embed-file ${CMAKE_CURRENT_SOURCE_DIR}/assets@. ")
 string(APPEND MY_FLAGS "--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/assets@. ")
-string(APPEND MY_FLAGS " -sEXPORTED_RUNTIME_METHODS=['ccall','stringToUTF8','setValue','getValue','lengthBytesUTF8','UTF8ToString'] ")
+string(APPEND MY_FLAGS " -sEXPORTED_RUNTIME_METHODS=['FS','ccall','stringToUTF8','setValue','getValue','lengthBytesUTF8','UTF8ToString','UTF8ArrayToString','HEAP8','HEAPU8','wasmMemory','HEAP32','stackSave','stackRestore'] ")
+string(APPEND MY_FLAGS " -s MODULARIZE=1 ")
+string(APPEND MY_FLAGS " -s EXPORT_ES6=1 ")
+string(APPEND MY_FLAGS " -s ENVIRONMENT=web ")
+# string(APPEND MY_FLAGS " -s SINGLE_FILE=1 ")
 
 message(STATUS "MY_FLAGS: ${MY_FLAGS}")
 

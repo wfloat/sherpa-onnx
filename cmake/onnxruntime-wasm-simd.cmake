@@ -10,9 +10,9 @@ if(BUILD_SHARED_LIBS)
   message(FATAL_ERROR "BUILD_SHARED_LIBS should be OFF for WebAssembly")
 endif()
 
-set(onnxruntime_URL  "https://github.com/csukuangfj/onnxruntime-libs/releases/download/v1.17.1/onnxruntime-wasm-static_lib-simd-1.17.1.zip")
-set(onnxruntime_URL2 "https://hf-mirror.com/csukuangfj/onnxruntime-libs/resolve/main/onnxruntime-wasm-static_lib-simd-1.17.1.zip")
-set(onnxruntime_HASH "SHA256=8f07778e4233cf5a61a9d0795d90c5497177fbe8a46b701fda2d8d4e2b11cef8")
+set(onnxruntime_filename "onnxruntime-wasm-static_lib-simd-1.17.1.zip")
+set(onnxruntime_URL "https://registry.wfloat.com/no-wasm-threads/${onnxruntime_filename}")
+set(onnxruntime_HASH "SHA256=92b1809e8f79510b8b8ccda7d8844189f4247055f2addf76b61d5a050c65bc84")
 
 # If you don't have access to the Internet,
 # please download onnxruntime to one of the following locations.
