@@ -12,12 +12,14 @@
 #include "sherpa-onnx/python/csrc/offline-tts-matcha-model-config.h"
 #include "sherpa-onnx/python/csrc/offline-tts-pocket-model-config.h"
 #include "sherpa-onnx/python/csrc/offline-tts-vits-model-config.h"
+#include "sherpa-onnx/python/csrc/offline-tts-wfloat-model-config.h"
 #include "sherpa-onnx/python/csrc/offline-tts-zipvoice-model-config.h"
 
 namespace sherpa_onnx {
 
 void PybindOfflineTtsModelConfig(py::module *m) {
   PybindOfflineTtsVitsModelConfig(m);
+  PybindOfflineTtsWfloatModelConfig(m);
   PybindOfflineTtsMatchaModelConfig(m);
   PybindOfflineTtsKokoroModelConfig(m);
   PybindOfflineTtsZipvoiceModelConfig(m);
@@ -29,6 +31,7 @@ void PybindOfflineTtsModelConfig(py::module *m) {
   py::class_<PyClass>(*m, "OfflineTtsModelConfig")
       .def(py::init<>())
       .def(py::init<const OfflineTtsVitsModelConfig &,
+                    const OfflineTtsWfloatModelConfig &,
                     const OfflineTtsMatchaModelConfig &,
                     const OfflineTtsKokoroModelConfig &,
                     const OfflineTtsZipvoiceModelConfig &,
@@ -36,6 +39,7 @@ void PybindOfflineTtsModelConfig(py::module *m) {
                     const OfflineTtsPocketModelConfig &, int32_t, bool,
                     const std::string &>(),
            py::arg("vits") = OfflineTtsVitsModelConfig{},
+           py::arg("wfloat") = OfflineTtsWfloatModelConfig{},
            py::arg("matcha") = OfflineTtsMatchaModelConfig{},
            py::arg("kokoro") = OfflineTtsKokoroModelConfig{},
            py::arg("zipvoice") = OfflineTtsZipvoiceModelConfig{},
@@ -44,6 +48,7 @@ void PybindOfflineTtsModelConfig(py::module *m) {
            py::arg("num_threads") = 1, py::arg("debug") = false,
            py::arg("provider") = "cpu")
       .def_readwrite("vits", &PyClass::vits)
+      .def_readwrite("wfloat", &PyClass::wfloat)
       .def_readwrite("matcha", &PyClass::matcha)
       .def_readwrite("kokoro", &PyClass::kokoro)
       .def_readwrite("zipvoice", &PyClass::zipvoice)

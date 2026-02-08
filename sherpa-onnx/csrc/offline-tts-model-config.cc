@@ -12,6 +12,7 @@ namespace sherpa_onnx {
 
 void OfflineTtsModelConfig::Register(ParseOptions *po) {
   vits.Register(po);
+  wfloat.Register(po);
   matcha.Register(po);
   kokoro.Register(po);
   zipvoice.Register(po);
@@ -36,6 +37,10 @@ bool OfflineTtsModelConfig::Validate() const {
 
   if (!vits.model.empty()) {
     return vits.Validate();
+  }
+
+  if (!wfloat.model.empty()) {
+    return wfloat.Validate();
   }
 
   if (!matcha.acoustic_model.empty()) {
@@ -68,6 +73,7 @@ std::string OfflineTtsModelConfig::ToString() const {
 
   os << "OfflineTtsModelConfig(";
   os << "vits=" << vits.ToString() << ", ";
+  os << "wfloat=" << wfloat.ToString() << ", ";
   os << "matcha=" << matcha.ToString() << ", ";
   os << "kokoro=" << kokoro.ToString() << ", ";
   os << "zipvoice=" << zipvoice.ToString() << ", ";

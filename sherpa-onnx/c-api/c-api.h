@@ -1085,6 +1085,18 @@ SHERPA_ONNX_API typedef struct SherpaOnnxOfflineTtsVitsModelConfig {
   const char *dict_dir;  // unused
 } SherpaOnnxOfflineTtsVitsModelConfig;
 
+SHERPA_ONNX_API typedef struct SherpaOnnxOfflineTtsWfloatModelConfig {
+  const char *model;
+  const char *lexicon;
+  const char *tokens;
+  const char *data_dir;
+
+  float noise_scale;
+  float noise_scale_w;
+  float length_scale;    // < 1, faster in speech speed; > 1, slower in speed
+  const char *dict_dir;  // unused
+} SherpaOnnxOfflineTtsWfloatModelConfig;
+
 SHERPA_ONNX_API typedef struct SherpaOnnxOfflineTtsMatchaModelConfig {
   const char *acoustic_model;
   const char *vocoder;
@@ -1151,6 +1163,7 @@ SHERPA_ONNX_API typedef struct SherpaOnnxOfflineTtsModelConfig {
   SherpaOnnxOfflineTtsKittenModelConfig kitten;
   SherpaOnnxOfflineTtsZipvoiceModelConfig zipvoice;
   SherpaOnnxOfflineTtsPocketModelConfig pocket;
+  SherpaOnnxOfflineTtsWfloatModelConfig wfloat;
 } SherpaOnnxOfflineTtsModelConfig;
 
 SHERPA_ONNX_API typedef struct SherpaOnnxOfflineTtsConfig {

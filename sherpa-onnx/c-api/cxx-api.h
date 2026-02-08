@@ -416,6 +416,18 @@ struct OfflineTtsVitsModelConfig {
   float length_scale = 1.0;  // < 1, faster in speed; > 1, slower in speed
 };
 
+struct OfflineTtsWfloatModelConfig {
+  std::string model;
+  std::string lexicon;
+  std::string tokens;
+  std::string data_dir;
+  std::string dict_dir;  // unused
+
+  float noise_scale = 0.667;
+  float noise_scale_w = 0.8;
+  float length_scale = 1.0;  // < 1, faster in speed; > 1, slower in speed
+};
+
 struct OfflineTtsMatchaModelConfig {
   std::string acoustic_model;
   std::string vocoder;
@@ -481,6 +493,7 @@ struct OfflineTtsModelConfig {
   OfflineTtsKittenModelConfig kitten;
   OfflineTtsZipvoiceModelConfig zipvoice;
   OfflineTtsPocketModelConfig pocket;
+  OfflineTtsWfloatModelConfig wfloat;
 
   int32_t num_threads = 1;
   bool debug = false;

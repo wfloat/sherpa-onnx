@@ -422,6 +422,14 @@ OfflineTts OfflineTts::Create(const OfflineTtsConfig &config) {
   c.model.vits.noise_scale_w = config.model.vits.noise_scale_w;
   c.model.vits.length_scale = config.model.vits.length_scale;
 
+  c.model.wfloat.model = config.model.wfloat.model.c_str();
+  c.model.wfloat.lexicon = config.model.wfloat.lexicon.c_str();
+  c.model.wfloat.tokens = config.model.wfloat.tokens.c_str();
+  c.model.wfloat.data_dir = config.model.wfloat.data_dir.c_str();
+  c.model.wfloat.noise_scale = config.model.wfloat.noise_scale;
+  c.model.wfloat.noise_scale_w = config.model.wfloat.noise_scale_w;
+  c.model.wfloat.length_scale = config.model.wfloat.length_scale;
+
   c.model.matcha.acoustic_model = config.model.matcha.acoustic_model.c_str();
   c.model.matcha.vocoder = config.model.matcha.vocoder.c_str();
   c.model.matcha.lexicon = config.model.matcha.lexicon.c_str();

@@ -14,6 +14,7 @@
 extern "C" {
 
 static_assert(sizeof(SherpaOnnxOfflineTtsVitsModelConfig) == 8 * 4, "");
+static_assert(sizeof(SherpaOnnxOfflineTtsWfloatModelConfig) == 8 * 4, "");
 static_assert(sizeof(SherpaOnnxOfflineTtsMatchaModelConfig) == 8 * 4, "");
 static_assert(sizeof(SherpaOnnxOfflineTtsKokoroModelConfig) == 8 * 4, "");
 static_assert(sizeof(SherpaOnnxOfflineTtsKittenModelConfig) == 5 * 4, "");
@@ -25,7 +26,8 @@ static_assert(sizeof(SherpaOnnxOfflineTtsModelConfig) ==
                       sizeof(SherpaOnnxOfflineTtsKokoroModelConfig) + 3 * 4 +
                       sizeof(SherpaOnnxOfflineTtsKittenModelConfig) +
                       sizeof(SherpaOnnxOfflineTtsZipvoiceModelConfig) +
-                      sizeof(SherpaOnnxOfflineTtsPocketModelConfig),
+                      sizeof(SherpaOnnxOfflineTtsPocketModelConfig) +
+                      sizeof(SherpaOnnxOfflineTtsWfloatModelConfig),
               "");
 static_assert(sizeof(SherpaOnnxOfflineTtsConfig) ==
                   sizeof(SherpaOnnxOfflineTtsModelConfig) + 4 * 4,
@@ -38,6 +40,7 @@ void MyPrint(SherpaOnnxOfflineTtsConfig *tts_config) {
   auto kokoro = &tts_model_config->kokoro;
   auto kitten = &tts_model_config->kitten;
   auto zipvoice = &tts_model_config->zipvoice;
+  auto wfloat_model_config = &tts_model_config->wfloat;
   fprintf(stdout, "----------vits model config----------\n");
   fprintf(stdout, "model: %s\n", vits_model_config->model);
   fprintf(stdout, "lexicon: %s\n", vits_model_config->lexicon);
@@ -86,6 +89,16 @@ void MyPrint(SherpaOnnxOfflineTtsConfig *tts_config) {
   fprintf(stdout, "t_shift: %.3f\n", zipvoice->t_shift);
   fprintf(stdout, "target_rms: %.3f\n", zipvoice->target_rms);
   fprintf(stdout, "guidance_scale: %.3f\n", zipvoice->guidance_scale);
+
+  fprintf(stdout, "----------wfloat model config----------\n");
+  fprintf(stdout, "model: %s\n", wfloat_model_config->model);
+  fprintf(stdout, "lexicon: %s\n", wfloat_model_config->lexicon);
+  fprintf(stdout, "tokens: %s\n", wfloat_model_config->tokens);
+  fprintf(stdout, "data_dir: %s\n", wfloat_model_config->data_dir);
+  fprintf(stdout, "noise scale: %.3f\n", wfloat_model_config->noise_scale);
+  fprintf(stdout, "noise scale w: %.3f\n", wfloat_model_config->noise_scale_w);
+  fprintf(stdout, "length scale: %.3f\n", wfloat_model_config->length_scale);
+  fprintf(stdout, "dict_dir: %s\n", wfloat_model_config->dict_dir);
 
   fprintf(stdout, "----------tts model config----------\n");
   fprintf(stdout, "num threads: %d\n", tts_model_config->num_threads);

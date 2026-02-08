@@ -89,6 +89,7 @@ PYBIND11_MODULE(_sherpa_onnx, m) {
   m.attr("OfflineTtsMatchaModelConfig") = py::none();
   m.attr("OfflineTtsModelConfig") = py::none();
   m.attr("OfflineTtsVitsModelConfig") = py::none();
+  m.attr("OfflineTtsWfloatModelConfig") = py::none();
   m.attr("OfflineTtsZipvoiceModelConfig") = py::none();
   m.attr("GeneratedAudio") = py::none();
   m.attr("OfflineTtsConfig") = py::none();

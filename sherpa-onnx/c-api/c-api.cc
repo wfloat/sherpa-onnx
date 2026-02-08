@@ -1283,6 +1283,21 @@ static sherpa_onnx::OfflineTtsConfig GetOfflineTtsConfig(
   tts_config.model.vits.length_scale =
       SHERPA_ONNX_OR(config->model.vits.length_scale, 1.0);
 
+  // wfloat
+  tts_config.model.wfloat.model = SHERPA_ONNX_OR(config->model.wfloat.model, "");
+  tts_config.model.wfloat.lexicon =
+      SHERPA_ONNX_OR(config->model.wfloat.lexicon, "");
+  tts_config.model.wfloat.tokens =
+      SHERPA_ONNX_OR(config->model.wfloat.tokens, "");
+  tts_config.model.wfloat.data_dir =
+      SHERPA_ONNX_OR(config->model.wfloat.data_dir, "");
+  tts_config.model.wfloat.noise_scale =
+      SHERPA_ONNX_OR(config->model.wfloat.noise_scale, 0.667);
+  tts_config.model.wfloat.noise_scale_w =
+      SHERPA_ONNX_OR(config->model.wfloat.noise_scale_w, 0.8);
+  tts_config.model.wfloat.length_scale =
+      SHERPA_ONNX_OR(config->model.wfloat.length_scale, 1.0);
+
   // matcha
   tts_config.model.matcha.acoustic_model =
       SHERPA_ONNX_OR(config->model.matcha.acoustic_model, "");

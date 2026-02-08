@@ -28,6 +28,10 @@ function freeConfig(config, Module) {
     freeConfig(config.pocket, Module)
   }
 
+  if ('wfloat' in config) {
+    freeConfig(config.wfloat, Module)
+  }
+
   Module._free(config.ptr);
 }
 
@@ -437,6 +441,18 @@ function initSherpaOnnxOfflineTtsModelConfig(config, Module) {
     };
   }
 
+  if (!('offlineTtsWfloatModelConfig' in config)) {
+    config.offlineTtsWfloatModelConfig = {
+      model: '',
+      lexicon: '',
+      tokens: '',
+      noiseScale: 0.667,
+      noiseScaleW: 0.8,
+      lengthScale: 1.0,
+      dataDir: '',
+    };
+  }
+
   if (!('offlineTtsKokoroModelConfig' in config)) {
     config.offlineTtsKokoroModelConfig = {
       model: '',
@@ -491,6 +507,9 @@ function initSherpaOnnxOfflineTtsModelConfig(config, Module) {
   const matchaModelConfig = initSherpaOnnxOfflineTtsMatchaModelConfig(
       config.offlineTtsMatchaModelConfig, Module);
 
+  const wfloatModelConfig = initSherpaOnnxOfflineTtsVitsModelConfig(
+      config.offlineTtsWfloatModelConfig, Module);
+
   const kokoroModelConfig = initSherpaOnnxOfflineTtsKokoroModelConfig(
       config.offlineTtsKokoroModelConfig, Module);
 
@@ -505,7 +524,7 @@ function initSherpaOnnxOfflineTtsModelConfig(config, Module) {
 
   const len = vitsModelConfig.len + matchaModelConfig.len +
       kokoroModelConfig.len + kittenModelConfig.len + zipVoiceModelConfig.len +
-      pocketModelConfig.len + 3 * 4;
+      pocketModelConfig.len + wfloatModelConfig.len + 3 * 4;
 
   const ptr = Module._malloc(len);
 
@@ -541,6 +560,9 @@ function initSherpaOnnxOfflineTtsModelConfig(config, Module) {
   Module._CopyHeap(pocketModelConfig.ptr, pocketModelConfig.len, ptr + offset);
   offset += pocketModelConfig.len;
 
+  Module._CopyHeap(wfloatModelConfig.ptr, wfloatModelConfig.len, ptr + offset);
+  offset += wfloatModelConfig.len;
+
   return {
     buffer: buffer,
     ptr: ptr,
@@ -551,6 +573,7 @@ function initSherpaOnnxOfflineTtsModelConfig(config, Module) {
     kitten: kittenModelConfig,
     zipvoice: zipVoiceModelConfig,
     pocket: pocketModelConfig,
+    wfloat: wfloatModelConfig,
   };
 }
 
@@ -676,6 +699,16 @@ function createOfflineTts(Module, myConfig) {
     lengthScale: 1.0,
   };
 
+  const wfloat = {
+    model: '',
+    lexicon: '',
+    tokens: '',
+    dataDir: '',
+    noiseScale: 0.667,
+    noiseScaleW: 0.8,
+    lengthScale: 1.0,
+  };
+
   const offlineTtsKokoroModelConfig = {
     model: '',
     voices: '',
@@ -745,6 +778,7 @@ function createOfflineTts(Module, myConfig) {
 
   const offlineTtsModelConfig = {
     offlineTtsVitsModelConfig: vits,
+    offlineTtsWfloatModelConfig: wfloat,
     offlineTtsMatchaModelConfig: matcha,
     offlineTtsKokoroModelConfig: offlineTtsKokoroModelConfig,
     offlineTtsKittenModelConfig: offlineTtsKittenModelConfig,

@@ -21,6 +21,7 @@
 #include "sherpa-onnx/csrc/offline-tts-matcha-impl.h"
 #include "sherpa-onnx/csrc/offline-tts-pocket-impl.h"
 #include "sherpa-onnx/csrc/offline-tts-vits-impl.h"
+#include "sherpa-onnx/csrc/offline-tts-wfloat-impl.h"
 #include "sherpa-onnx/csrc/offline-tts-zipvoice-impl.h"
 
 namespace sherpa_onnx {
@@ -41,6 +42,8 @@ std::unique_ptr<OfflineTtsImpl> OfflineTtsImpl::Create(
     const OfflineTtsConfig &config) {
   if (!config.model.vits.model.empty()) {
     return std::make_unique<OfflineTtsVitsImpl>(config);
+  } else if (!config.model.wfloat.model.empty()) {
+    return std::make_unique<OfflineTtsWfloatImpl>(config);
   } else if (!config.model.matcha.acoustic_model.empty()) {
     return std::make_unique<OfflineTtsMatchaImpl>(config);
   } else if (!config.model.zipvoice.encoder.empty() &&
@@ -64,6 +67,8 @@ std::unique_ptr<OfflineTtsImpl> OfflineTtsImpl::Create(
     Manager *mgr, const OfflineTtsConfig &config) {
   if (!config.model.vits.model.empty()) {
     return std::make_unique<OfflineTtsVitsImpl>(mgr, config);
+  } else if (!config.model.wfloat.model.empty()) {
+    return std::make_unique<OfflineTtsWfloatImpl>(mgr, config);
   } else if (!config.model.matcha.acoustic_model.empty()) {
     return std::make_unique<OfflineTtsMatchaImpl>(mgr, config);
   } else if (!config.model.zipvoice.encoder.empty() &&

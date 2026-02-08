@@ -12,6 +12,7 @@
 #include "sherpa-onnx/csrc/offline-tts-matcha-model-config.h"
 #include "sherpa-onnx/csrc/offline-tts-pocket-model-config.h"
 #include "sherpa-onnx/csrc/offline-tts-vits-model-config.h"
+#include "sherpa-onnx/csrc/offline-tts-wfloat-model-config.h"
 #include "sherpa-onnx/csrc/offline-tts-zipvoice-model-config.h"
 #include "sherpa-onnx/csrc/parse-options.h"
 
@@ -19,6 +20,7 @@ namespace sherpa_onnx {
 
 struct OfflineTtsModelConfig {
   OfflineTtsVitsModelConfig vits;
+  OfflineTtsWfloatModelConfig wfloat;
   OfflineTtsMatchaModelConfig matcha;
   OfflineTtsKokoroModelConfig kokoro;
   OfflineTtsZipvoiceModelConfig zipvoice;
@@ -40,6 +42,26 @@ struct OfflineTtsModelConfig {
                         int32_t num_threads, bool debug,
                         const std::string &provider)
       : vits(vits),
+        matcha(matcha),
+        kokoro(kokoro),
+        zipvoice(zipvoice),
+        kitten(kitten),
+        pocket(pocket),
+        num_threads(num_threads),
+        debug(debug),
+        provider(provider) {}
+
+  OfflineTtsModelConfig(const OfflineTtsVitsModelConfig &vits,
+                        const OfflineTtsWfloatModelConfig &wfloat,
+                        const OfflineTtsMatchaModelConfig &matcha,
+                        const OfflineTtsKokoroModelConfig &kokoro,
+                        const OfflineTtsZipvoiceModelConfig &zipvoice,
+                        const OfflineTtsKittenModelConfig &kitten,
+                        const OfflineTtsPocketModelConfig &pocket,
+                        int32_t num_threads, bool debug,
+                        const std::string &provider)
+      : vits(vits),
+        wfloat(wfloat),
         matcha(matcha),
         kokoro(kokoro),
         zipvoice(zipvoice),
