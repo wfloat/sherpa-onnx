@@ -4,7 +4,9 @@
 #ifndef SHERPA_ONNX_CSRC_OFFLINE_TTS_WFLOAT_IMPL_H_
 #define SHERPA_ONNX_CSRC_OFFLINE_TTS_WFLOAT_IMPL_H_
 
+#include <array>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <strstream>
 #include <utility>
@@ -193,6 +195,30 @@ class OfflineTtsWfloatImpl : public OfflineTtsImpl {
 #endif
     }
 
+    auto parsed_text = ParseEmotionGroupings(text);
+    [[maybe_unused]] const auto &sentence_emotion_slots =
+        parsed_text.sentence_emotion_slots;
+
+    if (config_.model.debug) {
+      auto parsed_text_log = FormatParsedEmotionText(parsed_text);
+#if __OHOS__
+      SHERPA_ONNX_LOGE("ParsedEmotionText:\n%{public}s",
+                       parsed_text_log.c_str());
+#else
+      SHERPA_ONNX_LOGE("ParsedEmotionText:\n%s", parsed_text_log.c_str());
+#endif
+    }
+    text = std::move(parsed_text.text_without_emotion_groupings);
+
+    if (config_.model.debug) {
+#if __OHOS__
+      SHERPA_ONNX_LOGE("After removing emotion groupings: %{public}s",
+                       text.c_str());
+#else
+      SHERPA_ONNX_LOGE("After removing emotion groupings: %s", text.c_str());
+#endif
+    }
+
     if (!tn_list_.empty()) {
       for (const auto &tn : tn_list_) {
         text = tn->Normalize(text);
@@ -335,6 +361,138 @@ class OfflineTtsWfloatImpl : public OfflineTtsImpl {
   }
 
  private:
+  struct ParsedEmotionText {
+    std::string text_without_emotion_groupings;
+    std::vector<std::array<char32_t, 4>> sentence_emotion_slots;
+  };
+
+  static std::string SlotToReadableString(char32_t slot) {
+    if (slot == U'\0') {
+      return "unset";
+    }
+
+    return Utf32ToUtf8(std::u32string(1, slot));
+  }
+
+  static std::string FormatParsedEmotionText(const ParsedEmotionText &parsed) {
+    std::ostringstream os;
+    os << "text_without_emotion_groupings: "
+       << parsed.text_without_emotion_groupings << '\n';
+    os << "sentence_emotion_slots (count="
+       << parsed.sentence_emotion_slots.size() << ")";
+
+    for (size_t i = 0; i < parsed.sentence_emotion_slots.size(); ++i) {
+      const auto &slots = parsed.sentence_emotion_slots[i];
+      os << '\n'
+         << '[' << i << "] "
+         << "emotion=" << SlotToReadableString(slots[0]) << ", "
+         << "style=" << SlotToReadableString(slots[1]) << ", "
+         << "arousal=" << SlotToReadableString(slots[2]) << ", "
+         << "pace=" << SlotToReadableString(slots[3]);
+    }
+
+    return os.str();
+  }
+
+  static bool IsSentenceTerminator(char32_t c) {
+    return c == U'.' || c == U'?' || c == U'!';
+  }
+
+  static bool IsEmotionCodepoint(char32_t c) {
+    switch (c) {
+      case U'😐':
+      case U'😄':
+      case U'😢':
+      case U'😡':
+      case U'😱':
+      case U'😲':
+      case U'🙄':
+      case U'🤔':
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  static bool IsStyleCodepoint(char32_t c) {
+    switch (c) {
+      case U'🙂':
+      case U'😏':
+      case U'😜':
+      case U'😌':
+      case U'🎭':
+      case U'🧐':
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  static bool IsCircledDigitCodepoint(char32_t c) {
+    switch (c) {
+      case U'⓪':
+      case U'①':
+      case U'②':
+      case U'③':
+      case U'④':
+      case U'⑤':
+      case U'⑥':
+      case U'⑦':
+      case U'⑧':
+      case U'⑨':
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  static bool HasEmotionGroupingAt(const std::u32string &text, size_t i) {
+    if (i + 4 >= text.size()) {
+      return false;
+    }
+
+    return IsEmotionCodepoint(text[i + 1]) && IsStyleCodepoint(text[i + 2]) &&
+           IsCircledDigitCodepoint(text[i + 3]) &&
+           IsCircledDigitCodepoint(text[i + 4]);
+  }
+
+  static ParsedEmotionText ParseEmotionGroupings(const std::string &text) {
+    ParsedEmotionText ans;
+
+    std::u32string u32 = Utf8ToUtf32(text);
+    std::u32string stripped;
+    stripped.reserve(u32.size());
+
+    for (size_t i = 0; i < u32.size(); ++i) {
+      char32_t c = u32[i];
+      stripped.push_back(c);
+
+      if (!IsSentenceTerminator(c)) {
+        continue;
+      }
+
+      std::array<char32_t, 4> slots = {U'\0', U'\0', U'\0', U'\0'};
+      if (HasEmotionGroupingAt(u32, i)) {
+        slots[0] = u32[i + 1];
+        slots[1] = u32[i + 2];
+        slots[2] = u32[i + 3];
+        slots[3] = u32[i + 4];
+
+        i += 4;  // skip 4-symbol emotion grouping
+        if (i + 1 < u32.size() && u32[i + 1] == U' ') {
+          // Keep the sentence separator space if present.
+          stripped.push_back(U' ');
+          ++i;
+        }
+      }
+
+      ans.sentence_emotion_slots.push_back(slots);
+    }
+
+    ans.text_without_emotion_groupings = Utf32ToUtf8(stripped);
+    return ans;
+  }
+
   template <typename Manager>
   void InitFrontend(Manager *mgr) {
     const auto &meta_data = model_->GetMetaData();

@@ -14,6 +14,7 @@
 #include "sherpa-onnx/csrc/offline-tts-kokoro-model-meta-data.h"
 #include "sherpa-onnx/csrc/offline-tts-matcha-model-meta-data.h"
 #include "sherpa-onnx/csrc/offline-tts-vits-model-meta-data.h"
+#include "sherpa-onnx/csrc/offline-tts-wfloat-model-meta-data.h"
 
 namespace sherpa_onnx {
 
@@ -21,6 +22,9 @@ class PiperPhonemizeLexicon : public OfflineTtsFrontend {
  public:
   PiperPhonemizeLexicon(const std::string &tokens, const std::string &data_dir,
                         const OfflineTtsVitsModelMetaData &vits_meta_data);
+
+  PiperPhonemizeLexicon(const std::string &tokens, const std::string &data_dir,
+                        const OfflineTtsWfloatModelMetaData &wfloat_meta_data);
 
   PiperPhonemizeLexicon(const std::string &tokens, const std::string &data_dir,
                         const OfflineTtsMatchaModelMetaData &matcha_meta_data);
@@ -35,6 +39,11 @@ class PiperPhonemizeLexicon : public OfflineTtsFrontend {
   PiperPhonemizeLexicon(Manager *mgr, const std::string &tokens,
                         const std::string &data_dir,
                         const OfflineTtsVitsModelMetaData &vits_meta_data);
+
+  template <typename Manager>
+  PiperPhonemizeLexicon(Manager *mgr, const std::string &tokens,
+                        const std::string &data_dir,
+                        const OfflineTtsWfloatModelMetaData &wfloat_meta_data);
 
   template <typename Manager>
   PiperPhonemizeLexicon(Manager *mgr, const std::string &tokens,
@@ -58,6 +67,9 @@ class PiperPhonemizeLexicon : public OfflineTtsFrontend {
   std::vector<TokenIDs> ConvertTextToTokenIdsVits(
       const std::string &text, const std::string &voice = "") const;
 
+  std::vector<TokenIDs> ConvertTextToTokenIdsWfloat(
+      const std::string &text, const std::string &voice = "") const;
+
   std::vector<TokenIDs> ConvertTextToTokenIdsMatcha(
       const std::string &text, const std::string &voice = "") const;
 
@@ -65,9 +77,11 @@ class PiperPhonemizeLexicon : public OfflineTtsFrontend {
   // map unicode codepoint to an integer ID
   std::unordered_map<char32_t, int32_t> token2id_;
   OfflineTtsVitsModelMetaData vits_meta_data_;
+  OfflineTtsWfloatModelMetaData wfloat_meta_data_;
   OfflineTtsMatchaModelMetaData matcha_meta_data_;
   OfflineTtsKokoroModelMetaData kokoro_meta_data_;
   OfflineTtsKittenModelMetaData kitten_meta_data_;
+  bool is_wfloat_ = false;
   bool is_matcha_ = false;
   bool is_kokoro_ = false;
   bool is_kitten_ = false;
