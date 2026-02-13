@@ -1214,6 +1214,28 @@ SherpaOnnxOfflineTtsSampleRate(const SherpaOnnxOfflineTts *tts);
 SHERPA_ONNX_API int32_t
 SherpaOnnxOfflineTtsNumSpeakers(const SherpaOnnxOfflineTts *tts);
 
+// Prepare Wfloat text with sentence splitting/cleaning and append
+// emotion/style/intensity/pace symbols to every sentence in text_clean.
+//
+// Valid emotion values:
+//   neutral, joy, sadness, anger, fear, surprise, dismissive, confusion
+//
+// Valid style values:
+//   default, sarcastic, playful, calm, dramatic, serious
+//
+// intensity and pace are expected to be in [0, 1]. Out-of-range values are
+// clamped.
+//
+// Return value:
+//   A JSON string with keys "text" and "text_clean".
+//   The caller must free it with SherpaOnnxOfflineTtsWfloatFreePreparedText().
+SHERPA_ONNX_API const char *SherpaOnnxOfflineTtsWfloatPrepareText(
+    const char *text, const char *emotion, const char *style, float intensity,
+    float pace);
+
+SHERPA_ONNX_API void SherpaOnnxOfflineTtsWfloatFreePreparedText(
+    const char *prepared_text);
+
 // Generate audio from the given text and speaker id (sid).
 // The user has to use SherpaOnnxDestroyOfflineTtsGeneratedAudio() to free the
 // returned pointer to avoid memory leak.

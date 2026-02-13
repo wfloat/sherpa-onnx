@@ -15,6 +15,8 @@ set(exported_functions
   SherpaOnnxOfflineTtsGenerate
   SherpaOnnxOfflineTtsGenerateWithCallback
   SherpaOnnxOfflineTtsGenerateWithProgressCallback
+  SherpaOnnxOfflineTtsWfloatPrepareText
+  SherpaOnnxOfflineTtsWfloatFreePreparedText
   SherpaOnnxOfflineTtsNumSpeakers
   SherpaOnnxOfflineTtsSampleRate
   SherpaOnnxWriteWave
