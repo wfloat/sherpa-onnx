@@ -14,6 +14,7 @@ set(exported_functions
   SherpaOnnxDestroyOfflineTtsGeneratedAudio
   SherpaOnnxOfflineTtsGenerate
   SherpaOnnxOfflineTtsGenerateWithCallback
+  SherpaOnnxOfflineTtsGenerateWithProgressCallback
   SherpaOnnxOfflineTtsNumSpeakers
   SherpaOnnxOfflineTtsSampleRate
   SherpaOnnxWriteWave
@@ -27,12 +28,12 @@ list(JOIN mangled_exported_functions "," all_exported_functions)
 
 
 include_directories(${CMAKE_SOURCE_DIR})
-set(MY_FLAGS " -s FORCE_FILESYSTEM=1 -s INITIAL_MEMORY=512MB -s ALLOW_MEMORY_GROWTH=1")
+set(MY_FLAGS " -s FORCE_FILESYSTEM=1 -s INITIAL_MEMORY=512MB -s ALLOW_MEMORY_GROWTH=1 -s ALLOW_TABLE_GROWTH=1")
 string(APPEND MY_FLAGS " -sSTACK_SIZE=10485760 ") # 10MB
 string(APPEND MY_FLAGS " -sEXPORTED_FUNCTIONS=[_CopyHeap,_malloc,_free,${all_exported_functions}] ")
 # string(APPEND MY_FLAGS "--embed-file ${CMAKE_CURRENT_SOURCE_DIR}/assets@. ")
 string(APPEND MY_FLAGS "--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/assets@. ")
-string(APPEND MY_FLAGS " -sEXPORTED_RUNTIME_METHODS=['FS','ccall','stringToUTF8','setValue','getValue','lengthBytesUTF8','UTF8ToString','UTF8ArrayToString','HEAP8','HEAPU8','wasmMemory','HEAP32','stackSave','stackRestore'] ")
+string(APPEND MY_FLAGS " -sEXPORTED_RUNTIME_METHODS=['FS','ccall','stringToUTF8','setValue','getValue','lengthBytesUTF8','UTF8ToString','UTF8ArrayToString','wasmMemory','stackSave','stackRestore','addFunction','removeFunction'] ")
 string(APPEND MY_FLAGS " -s MODULARIZE=1 ")
 string(APPEND MY_FLAGS " -s EXPORT_ES6=1 ")
 string(APPEND MY_FLAGS " -s ENVIRONMENT=web ")
