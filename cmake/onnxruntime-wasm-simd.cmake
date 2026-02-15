@@ -11,7 +11,7 @@ if(BUILD_SHARED_LIBS)
 endif()
 
 set(onnxruntime_filename "onnxruntime-wasm-static_lib-simd-1.17.1.zip")
-set(onnxruntime_URL "https://registry.wfloat.com/no-wasm-threads/${onnxruntime_filename}")
+set(onnxruntime_URL "https://registry.wfloat.com/onnxruntime-wasm-static_lib-simd/${onnxruntime_filename}")
 set(onnxruntime_HASH "SHA256=92b1809e8f79510b8b8ccda7d8844189f4247055f2addf76b61d5a050c65bc84")
 
 # If you don't have access to the Internet,
