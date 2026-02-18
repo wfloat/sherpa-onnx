@@ -198,6 +198,63 @@ static std::vector<int64_t> PiperPhonemesToIdsVits(
   return ans;
 }
 
+static std::vector<int64_t> PiperPhonemesToIdsWfloat(
+    const std::unordered_map<char32_t, int32_t> &token2id,
+    const std::vector<piper::Phoneme> &phonemes,
+    const OfflineTtsWfloatModelMetaData &wfloat_meta_data) {
+  // Keep backward-compatible behavior for existing Piper models where
+  // use_eos_bos defaults to 1: BOS + (phoneme, PAD)* + EOS.
+  if (wfloat_meta_data.use_eos_bos != 0) {
+    int32_t pad = wfloat_meta_data.pad_id;
+    int32_t bos = wfloat_meta_data.bos_id;
+    int32_t eos = wfloat_meta_data.eos_id;
+
+    if (token2id.count(U'_')) {
+      pad = token2id.at(U'_');
+    }
+
+    if (token2id.count(U'^')) {
+      bos = token2id.at(U'^');
+    }
+
+    if (token2id.count(U'$')) {
+      eos = token2id.at(U'$');
+    }
+
+    std::vector<int64_t> ans;
+    ans.reserve(phonemes.size() * 2 + 2);
+    ans.push_back(bos);
+
+    for (auto p : phonemes) {
+      if (token2id.count(p)) {
+        ans.push_back(token2id.at(p));
+        ans.push_back(pad);
+      } else {
+        SHERPA_ONNX_LOGE("Skip unknown phonemes. Unicode codepoint: \\U+%04x.",
+                         static_cast<uint32_t>(p));
+      }
+    }
+
+    ans.push_back(eos);
+    return ans;
+  }
+
+  // For custom Wfloat models trained with raw phoneme ID sequences (no
+  // BOS/PAD/EOS wrapping), use phonemes directly.
+  std::vector<int64_t> ans;
+  ans.reserve(phonemes.size());
+  for (auto p : phonemes) {
+    if (token2id.count(p)) {
+      ans.push_back(token2id.at(p));
+    } else {
+      SHERPA_ONNX_LOGE("Skip unknown phonemes. Unicode codepoint: \\U+%04x.",
+                       static_cast<uint32_t>(p));
+    }
+  }
+
+  return ans;
+}
+
 static std::vector<std::vector<int64_t>> PiperPhonemesToIdsMatcha(
     const std::unordered_map<char32_t, int32_t> &token2id,
     const std::vector<piper::Phoneme> &phonemes, bool use_eos_bos,
@@ -627,8 +684,6 @@ std::vector<TokenIDs> PiperPhonemizeLexicon::ConvertTextToTokenIdsVits(
 
 std::vector<TokenIDs> PiperPhonemizeLexicon::ConvertTextToTokenIdsWfloat(
     const std::string &text, const std::string &voice /*= ""*/) const {
-  SHERPA_ONNX_LOGE("ConvertTextToTokenIdsWfloat text: %s", text.c_str());
-
   piper::eSpeakPhonemeConfig config;
 
   // ./bin/espeak-ng-bin --path  ./install/share/espeak-ng-data/ --voices
@@ -645,7 +700,7 @@ std::vector<TokenIDs> PiperPhonemizeLexicon::ConvertTextToTokenIdsWfloat(
 
   if (wfloat_meta_data_.is_piper || wfloat_meta_data_.is_icefall) {
     for (const auto &p : phonemes) {
-      phoneme_ids = PiperPhonemesToIdsVits(token2id_, p);
+      phoneme_ids = PiperPhonemesToIdsWfloat(token2id_, p, wfloat_meta_data_);
       ans.emplace_back(std::move(phoneme_ids));
     }
   } else if (wfloat_meta_data_.is_coqui) {

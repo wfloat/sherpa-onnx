@@ -4,11 +4,14 @@
 #ifndef SHERPA_ONNX_CSRC_OFFLINE_TTS_WFLOAT_IMPL_H_
 #define SHERPA_ONNX_CSRC_OFFLINE_TTS_WFLOAT_IMPL_H_
 
+#include <algorithm>
 #include <array>
+#include <fstream>
 #include <memory>
 #include <sstream>
 #include <string>
 #include <strstream>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -25,6 +28,7 @@
 #include "sherpa-onnx/csrc/offline-tts-impl.h"
 #include "sherpa-onnx/csrc/offline-tts-wfloat-model.h"
 #include "sherpa-onnx/csrc/piper-phonemize-lexicon.h"
+#include "sherpa-onnx/csrc/symbol-table.h"
 #include "sherpa-onnx/csrc/text-utils.h"
 
 namespace sherpa_onnx {
@@ -35,6 +39,7 @@ class OfflineTtsWfloatImpl : public OfflineTtsImpl {
       : config_(config),
         model_(std::make_unique<OfflineTtsWfloatModel>(config.model)) {
     InitFrontend();
+    InitEmotionTokenTable();
 
     if (!config.rule_fsts.empty()) {
       std::vector<std::string> files;
@@ -91,6 +96,7 @@ class OfflineTtsWfloatImpl : public OfflineTtsImpl {
       : config_(config),
         model_(std::make_unique<OfflineTtsWfloatModel>(mgr, config.model)) {
     InitFrontend(mgr);
+    InitEmotionTokenTable(mgr);
 
     if (!config.rule_fsts.empty()) {
       std::vector<std::string> files;
@@ -196,8 +202,7 @@ class OfflineTtsWfloatImpl : public OfflineTtsImpl {
     }
 
     auto parsed_text = ParseEmotionGroupings(text);
-    [[maybe_unused]] const auto &sentence_emotion_slots =
-        parsed_text.sentence_emotion_slots;
+    const auto &sentence_emotion_slots = parsed_text.sentence_emotion_slots;
 
     if (config_.model.debug) {
       auto parsed_text_log = FormatParsedEmotionText(parsed_text);
@@ -240,6 +245,8 @@ class OfflineTtsWfloatImpl : public OfflineTtsImpl {
       SHERPA_ONNX_LOGE("Failed to convert %s to token IDs", text.c_str());
       return {};
     }
+
+    AppendEmotionSlotsToTokenIds(&token_ids, sentence_emotion_slots);
 
     std::vector<std::vector<int64_t>> x;
     std::vector<std::vector<int64_t>> tones;
@@ -456,6 +463,90 @@ class OfflineTtsWfloatImpl : public OfflineTtsImpl {
            IsCircledDigitCodepoint(text[i + 4]);
   }
 
+  static bool HasAllEmotionSlots(const std::array<char32_t, 4> &slots) {
+    return std::all_of(slots.begin(), slots.end(),
+                       [](char32_t c) { return c != U'\0'; });
+  }
+
+  std::vector<int64_t> ConvertEmotionSlotsToTokenIds(
+      const std::array<char32_t, 4> &slots) const {
+    std::vector<int64_t> ids;
+    ids.reserve(slots.size());
+
+    for (char32_t c : slots) {
+      std::string symbol = Utf32ToUtf8(std::u32string(1, c));
+      auto it = emotion_token2id_.find(symbol);
+      if (it == emotion_token2id_.end()) {
+        if (config_.model.debug) {
+#if __OHOS__
+          SHERPA_ONNX_LOGE("Failed to find token ID for emotion symbol: "
+                           "%{public}s",
+                           symbol.c_str());
+#else
+          SHERPA_ONNX_LOGE("Failed to find token ID for emotion symbol: %s",
+                           symbol.c_str());
+#endif
+        }
+        return {};
+      }
+      ids.push_back(it->second);
+    }
+
+    return ids;
+  }
+
+  void AppendEmotionSlotsToTokenIds(
+      std::vector<TokenIDs> *token_ids,
+      const std::vector<std::array<char32_t, 4>> &sentence_emotion_slots) const {
+    if (!token_ids || token_ids->empty() || sentence_emotion_slots.empty() ||
+        emotion_token2id_.empty()) {
+      return;
+    }
+
+    const size_t n = std::min(token_ids->size(), sentence_emotion_slots.size());
+    if (config_.model.debug && token_ids->size() != sentence_emotion_slots.size()) {
+#if __OHOS__
+      SHERPA_ONNX_LOGE("Sentence count mismatch when appending emotion symbols. "
+                       "token_ids: %{public}d, groupings: %{public}d",
+                       static_cast<int32_t>(token_ids->size()),
+                       static_cast<int32_t>(sentence_emotion_slots.size()));
+#else
+      SHERPA_ONNX_LOGE("Sentence count mismatch when appending emotion symbols. "
+                       "token_ids: %d, groupings: %d",
+                       static_cast<int32_t>(token_ids->size()),
+                       static_cast<int32_t>(sentence_emotion_slots.size()));
+#endif
+    }
+
+    for (size_t i = 0; i < n; ++i) {
+      const auto &slots = sentence_emotion_slots[i];
+      if (!HasAllEmotionSlots(slots)) {
+        continue;
+      }
+
+      auto slot_token_ids = ConvertEmotionSlotsToTokenIds(slots);
+      if (slot_token_ids.size() != slots.size()) {
+        continue;
+      }
+
+      auto &sentence_tokens = (*token_ids)[i].tokens;
+      size_t insert_index = sentence_tokens.size();
+      if (!sentence_tokens.empty() && sentence_tokens.back() == 0) {
+        insert_index = sentence_tokens.size() - 1;
+      }
+
+      sentence_tokens.insert(sentence_tokens.begin() + insert_index,
+                             slot_token_ids.begin(), slot_token_ids.end());
+
+      auto &sentence_tones = (*token_ids)[i].tones;
+      if (!sentence_tones.empty()) {
+        size_t tone_insert_index = std::min(insert_index, sentence_tones.size());
+        sentence_tones.insert(sentence_tones.begin() + tone_insert_index,
+                              slot_token_ids.size(), 0);
+      }
+    }
+  }
+
   static ParsedEmotionText ParseEmotionGroupings(const std::string &text) {
     ParsedEmotionText ans;
 
@@ -492,6 +583,26 @@ class OfflineTtsWfloatImpl : public OfflineTtsImpl {
     ans.text_without_emotion_groupings = Utf32ToUtf8(stripped);
     return ans;
   }
+
+  void InitEmotionTokenTable() {
+    std::ifstream is(config_.model.wfloat.tokens);
+    if (!is.is_open()) {
+      SHERPA_ONNX_LOGE("Failed to open tokens file: %s",
+                       config_.model.wfloat.tokens.c_str());
+      return;
+    }
+
+    InitEmotionTokenTable(is);
+  }
+
+  template <typename Manager>
+  void InitEmotionTokenTable(Manager *mgr) {
+    auto buf = ReadFile(mgr, config_.model.wfloat.tokens);
+    std::istrstream is(buf.data(), buf.size());
+    InitEmotionTokenTable(is);
+  }
+
+  void InitEmotionTokenTable(std::istream &is) { emotion_token2id_ = ReadTokens(is); }
 
   template <typename Manager>
   void InitFrontend(Manager *mgr) {
@@ -641,6 +752,7 @@ class OfflineTtsWfloatImpl : public OfflineTtsImpl {
   std::unique_ptr<OfflineTtsWfloatModel> model_;
   std::vector<std::unique_ptr<kaldifst::TextNormalizer>> tn_list_;
   std::unique_ptr<OfflineTtsFrontend> frontend_;
+  std::unordered_map<std::string, int32_t> emotion_token2id_;
 };
 
 }  // namespace sherpa_onnx
