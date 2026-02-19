@@ -246,7 +246,9 @@ class OfflineTtsWfloatImpl : public OfflineTtsImpl {
       return {};
     }
 
-    AppendEmotionSlotsToTokenIds(&token_ids, sentence_emotion_slots);
+    auto split_emotion_slots = SplitLongSentencesIfNeeded(
+        &token_ids, sentence_emotion_slots, /*max_sentence_len=*/400);
+    AppendEmotionSlotsToTokenIds(&token_ids, split_emotion_slots);
 
     std::vector<std::vector<int64_t>> x;
     std::vector<std::vector<int64_t>> tones;
@@ -468,6 +470,221 @@ class OfflineTtsWfloatImpl : public OfflineTtsImpl {
                        [](char32_t c) { return c != U'\0'; });
   }
 
+  static bool IsTerminalPunctuationSymbol(const std::string &s) {
+    return s == "." || s == "!" || s == "?" || s == "。" || s == "！" ||
+           s == "？" || s == ";" || s == "；" || s == ":" || s == "：";
+  }
+
+  int64_t GetTokenId(const std::string &sym) const {
+    auto it = emotion_token2id_.find(sym);
+    if (it == emotion_token2id_.end()) {
+      return -1;
+    }
+
+    return it->second;
+  }
+
+  std::string GetTokenSymbol(int64_t id) const {
+    auto it = emotion_id2token_.find(static_cast<int32_t>(id));
+    if (it == emotion_id2token_.end()) {
+      return "";
+    }
+
+    return it->second;
+  }
+
+  int64_t GetDefaultTerminalPunctuationId() const {
+    static const std::array<const char *, 10> kCandidates = {
+        ".", "。", "!", "！", "?", "？", ";", "；", ":", "："};
+
+    for (const auto *s : kCandidates) {
+      auto id = GetTokenId(s);
+      if (id >= 0) {
+        return id;
+      }
+    }
+
+    return -1;
+  }
+
+  int32_t FindSplitPointBySpace(const std::vector<int64_t> &tokens,
+                                int32_t begin, int32_t hard_end,
+                                int64_t space_id) const {
+    if (space_id < 0) {
+      return -1;
+    }
+
+    for (int32_t i = hard_end - 1; i > begin; --i) {
+      if (tokens[i] == space_id) {
+        return i;
+      }
+    }
+
+    return -1;
+  }
+
+  std::vector<std::array<char32_t, 4>> SplitLongSentencesIfNeeded(
+      std::vector<TokenIDs> *token_ids,
+      const std::vector<std::array<char32_t, 4>> &sentence_emotion_slots,
+      int32_t max_sentence_len) const {
+    std::vector<std::array<char32_t, 4>> aligned_slots(token_ids->size(),
+                                                       {U'\0', U'\0', U'\0',
+                                                        U'\0'});
+    const size_t n = std::min(aligned_slots.size(), sentence_emotion_slots.size());
+    for (size_t i = 0; i < n; ++i) {
+      aligned_slots[i] = sentence_emotion_slots[i];
+    }
+
+    std::vector<TokenIDs> split_ids;
+    split_ids.reserve(token_ids->size());
+
+    std::vector<std::array<char32_t, 4>> split_slots;
+    split_slots.reserve(token_ids->size());
+
+    const int64_t bos_id = GetTokenId("^");
+    const int64_t eos_id = GetTokenId("$");
+    const int64_t space_id = GetTokenId(" ");
+
+    for (size_t i = 0; i < token_ids->size(); ++i) {
+      auto &t = (*token_ids)[i];
+      const auto &slots = aligned_slots[i];
+
+      int32_t emotion_extra = HasAllEmotionSlots(slots) ? 4 : 0;
+      if (static_cast<int32_t>(t.tokens.size()) + emotion_extra <=
+          max_sentence_len) {
+        split_ids.push_back(std::move(t));
+        split_slots.push_back(slots);
+        continue;
+      }
+
+      int32_t core_begin = 0;
+      int32_t core_end = static_cast<int32_t>(t.tokens.size());
+
+      std::vector<int64_t> prefix_tokens;
+      std::vector<int64_t> suffix_tokens;
+      std::vector<int64_t> prefix_tones;
+      std::vector<int64_t> suffix_tones;
+
+      if (bos_id >= 0 && core_begin < core_end && t.tokens[core_begin] == bos_id) {
+        prefix_tokens.push_back(t.tokens[core_begin]);
+        if (!t.tones.empty() && static_cast<int32_t>(t.tones.size()) > core_begin) {
+          prefix_tones.push_back(t.tones[core_begin]);
+        }
+        ++core_begin;
+      }
+
+      if (eos_id >= 0 && core_begin < core_end && t.tokens[core_end - 1] == eos_id) {
+        suffix_tokens.push_back(t.tokens[core_end - 1]);
+        if (!t.tones.empty() && static_cast<int32_t>(t.tones.size()) >= core_end) {
+          suffix_tones.push_back(t.tones[core_end - 1]);
+        }
+        --core_end;
+      }
+
+      int64_t terminal_punct_id = -1;
+      int32_t terminal_punct_tone = 0;
+
+      int32_t punct_idx = core_end - 1;
+      while (punct_idx >= core_begin && space_id >= 0 &&
+             t.tokens[punct_idx] == space_id) {
+        --punct_idx;
+      }
+
+      if (punct_idx >= core_begin) {
+        auto sym = GetTokenSymbol(t.tokens[punct_idx]);
+        if (IsTerminalPunctuationSymbol(sym)) {
+          terminal_punct_id = t.tokens[punct_idx];
+          if (!t.tones.empty() && static_cast<int32_t>(t.tones.size()) > punct_idx) {
+            terminal_punct_tone = static_cast<int32_t>(t.tones[punct_idx]);
+          }
+          core_end = punct_idx;
+          while (core_end > core_begin && space_id >= 0 &&
+                 t.tokens[core_end - 1] == space_id) {
+            --core_end;
+          }
+        }
+      }
+
+      if (terminal_punct_id < 0) {
+        terminal_punct_id = GetDefaultTerminalPunctuationId();
+      }
+
+      int32_t punctuation_extra = terminal_punct_id >= 0 ? 1 : 0;
+      int32_t fixed_extra = static_cast<int32_t>(prefix_tokens.size() +
+                                                 suffix_tokens.size()) +
+                            punctuation_extra + emotion_extra;
+      int32_t chunk_budget = max_sentence_len - fixed_extra;
+      if (chunk_budget <= 0) {
+        chunk_budget = 1;
+      }
+
+      int32_t cur = core_begin;
+      while (cur < core_end) {
+        int32_t hard_end = std::min(core_end, cur + chunk_budget);
+        int32_t split_point = hard_end;
+        if (hard_end < core_end) {
+          int32_t p = FindSplitPointBySpace(t.tokens, cur, hard_end, space_id);
+          if (p > cur) {
+            split_point = p;
+          }
+        }
+
+        while (split_point > cur && space_id >= 0 &&
+               t.tokens[split_point - 1] == space_id) {
+          --split_point;
+        }
+        if (split_point <= cur) {
+          split_point = std::min(core_end, cur + chunk_budget);
+        }
+
+        TokenIDs piece;
+        piece.tokens.reserve(max_sentence_len);
+        if (!t.tones.empty()) {
+          piece.tones.reserve(max_sentence_len);
+        }
+
+        piece.tokens.insert(piece.tokens.end(), prefix_tokens.begin(),
+                            prefix_tokens.end());
+        if (!t.tones.empty()) {
+          piece.tones.insert(piece.tones.end(), prefix_tones.begin(),
+                             prefix_tones.end());
+        }
+
+        piece.tokens.insert(piece.tokens.end(), t.tokens.begin() + cur,
+                            t.tokens.begin() + split_point);
+        if (!t.tones.empty()) {
+          piece.tones.insert(piece.tones.end(), t.tones.begin() + cur,
+                             t.tones.begin() + split_point);
+        }
+
+        if (terminal_punct_id >= 0) {
+          piece.tokens.push_back(terminal_punct_id);
+          if (!t.tones.empty()) {
+            piece.tones.push_back(terminal_punct_tone);
+          }
+        }
+
+        piece.tokens.insert(piece.tokens.end(), suffix_tokens.begin(),
+                            suffix_tokens.end());
+        if (!t.tones.empty()) {
+          piece.tones.insert(piece.tones.end(), suffix_tones.begin(),
+                             suffix_tones.end());
+        }
+
+        split_ids.push_back(std::move(piece));
+        split_slots.push_back(slots);
+
+        cur = split_point;
+        while (cur < core_end && space_id >= 0 && t.tokens[cur] == space_id) {
+          ++cur;
+        }
+      }
+    }
+
+    *token_ids = std::move(split_ids);
+    return split_slots;
+  }
+
   std::vector<int64_t> ConvertEmotionSlotsToTokenIds(
       const std::array<char32_t, 4> &slots) const {
     std::vector<int64_t> ids;
@@ -602,7 +819,10 @@ class OfflineTtsWfloatImpl : public OfflineTtsImpl {
     InitEmotionTokenTable(is);
   }
 
-  void InitEmotionTokenTable(std::istream &is) { emotion_token2id_ = ReadTokens(is); }
+  void InitEmotionTokenTable(std::istream &is) {
+    emotion_id2token_.clear();
+    emotion_token2id_ = ReadTokens(is, &emotion_id2token_);
+  }
 
   template <typename Manager>
   void InitFrontend(Manager *mgr) {
@@ -753,6 +973,7 @@ class OfflineTtsWfloatImpl : public OfflineTtsImpl {
   std::vector<std::unique_ptr<kaldifst::TextNormalizer>> tn_list_;
   std::unique_ptr<OfflineTtsFrontend> frontend_;
   std::unordered_map<std::string, int32_t> emotion_token2id_;
+  std::unordered_map<int32_t, std::string> emotion_id2token_;
 };
 
 }  // namespace sherpa_onnx
