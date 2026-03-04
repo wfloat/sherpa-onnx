@@ -1270,6 +1270,7 @@ namespace {
 struct WfloatPreparedText {
   std::vector<std::string> text;
   std::vector<std::string> text_clean;
+  std::vector<std::string> text_phonemes;
 };
 
 struct WfloatPlaceholderResult {
@@ -2025,25 +2026,36 @@ int32_t SherpaOnnxOfflineTtsNumSpeakers(const SherpaOnnxOfflineTts *tts) {
 }
 
 const char *SherpaOnnxOfflineTtsWfloatPrepareText(
-    const char *text, const char *emotion, const char *style, float intensity,
-    float pace) {
+    const SherpaOnnxOfflineTts *tts, const char *text, const char *emotion,
+    const char *style, float intensity, float pace) {
   if (!text) {
     SHERPA_ONNX_LOGE("text is nullptr");
     return nullptr;
   }
 
   WfloatPreparedText prepared = SplitIntoWfloatSentences(text);
+  prepared.text_phonemes.resize(prepared.text_clean.size());
+
+  if (tts && tts->impl) {
+    auto phonemes = tts->impl->ConvertTextToPhonemes(prepared.text_clean);
+    size_t n = std::min(phonemes.size(), prepared.text_phonemes.size());
+    for (size_t i = 0; i != n; ++i) {
+      prepared.text_phonemes[i] = std::move(phonemes[i]);
+    }
+  }
 
   std::string suffix = ResolveEmotionEmoji(emotion) + ResolveStyleEmoji(style) +
                        UnitFloatToPhoneme(intensity) + UnitFloatToPhoneme(pace);
 
-  for (auto &chunk : prepared.text_clean) {
-    chunk += suffix;
+  for (size_t i = 0; i != prepared.text_clean.size(); ++i) {
+    prepared.text_clean[i] += suffix;
+    prepared.text_phonemes[i] += suffix;
   }
 
   nlohmann::json j;
   j["text"] = prepared.text;
   j["text_clean"] = prepared.text_clean;
+  j["text_phonemes"] = prepared.text_phonemes;
 
   return AllocCString(j.dump());
 }
@@ -2360,8 +2372,14 @@ int32_t SherpaOnnxOfflineTtsNumSpeakers(const SherpaOnnxOfflineTts *tts) {
 }
 
 const char *SherpaOnnxOfflineTtsWfloatPrepareText(
-    const char *text, const char *emotion, const char *style, float intensity,
-    float pace) {
+    const SherpaOnnxOfflineTts *tts, const char *text, const char *emotion,
+    const char *style, float intensity, float pace) {
+  (void)tts;
+  (void)text;
+  (void)emotion;
+  (void)style;
+  (void)intensity;
+  (void)pace;
   SHERPA_ONNX_LOGE("TTS is not enabled. Please rebuild sherpa-onnx");
   return nullptr;
 }

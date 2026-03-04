@@ -325,6 +325,11 @@ int32_t OfflineTts::SampleRate() const { return impl_->SampleRate(); }
 
 int32_t OfflineTts::NumSpeakers() const { return impl_->NumSpeakers(); }
 
+std::vector<std::string> OfflineTts::ConvertTextToPhonemes(
+    const std::vector<std::string> &text) const {
+  return impl_->ConvertTextToPhonemes(text);
+}
+
 #if __ANDROID_API__ >= 9
 template OfflineTts::OfflineTts(AAssetManager *mgr,
                                 const OfflineTtsConfig &config);

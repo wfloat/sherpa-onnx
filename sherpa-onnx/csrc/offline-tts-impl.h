@@ -48,6 +48,11 @@ class OfflineTtsImpl {
     return {};
   }
 
+  virtual std::vector<std::string> ConvertTextToPhonemes(
+      const std::vector<std::string> &text) const {
+    return {};
+  }
+
   // Return the sample rate of the generated audio
   virtual int32_t SampleRate() const = 0;
 

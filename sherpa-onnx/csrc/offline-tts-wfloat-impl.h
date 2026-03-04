@@ -157,6 +157,24 @@ class OfflineTtsWfloatImpl : public OfflineTtsImpl {
     return model_->GetMetaData().num_speakers;
   }
 
+  std::vector<std::string> ConvertTextToPhonemes(
+      const std::vector<std::string> &text) const override {
+    std::vector<std::string> ans;
+    ans.reserve(text.size());
+
+    const auto &meta_data = model_->GetMetaData();
+    for (const auto &chunk : text) {
+      auto token_ids = frontend_->ConvertTextToTokenIds(chunk, meta_data.voice);
+      std::string chunk_phonemes;
+      for (const auto &sentence_tokens : token_ids) {
+        chunk_phonemes += ConvertTokenIdsToSymbols(sentence_tokens.tokens);
+      }
+      ans.push_back(std::move(chunk_phonemes));
+    }
+
+    return ans;
+  }
+
   GeneratedAudio Generate(
       const std::string &_text, int64_t sid = 0, float speed = 1.0,
       GeneratedAudioCallback callback = nullptr) const override {
@@ -491,6 +509,19 @@ class OfflineTtsWfloatImpl : public OfflineTtsImpl {
     }
 
     return it->second;
+  }
+
+  std::string ConvertTokenIdsToSymbols(const std::vector<int64_t> &token_ids) const {
+    std::string ans;
+    for (auto id : token_ids) {
+      std::string sym = GetTokenSymbol(id);
+      if (sym.empty() || sym == "^" || sym == "$") {
+        continue;
+      }
+      ans += sym;
+    }
+
+    return ans;
   }
 
   int64_t GetDefaultTerminalPunctuationId() const {

@@ -153,6 +153,11 @@ class OfflineTts {
   // If it supports only a single speaker, then it return 0 or 1.
   int32_t NumSpeakers() const;
 
+  // Convert each input sentence into its phoneme-string representation.
+  // Currently implemented only for Wfloat models.
+  std::vector<std::string> ConvertTextToPhonemes(
+      const std::vector<std::string> &text) const;
+
  private:
   std::unique_ptr<OfflineTtsImpl> impl_;
 };
