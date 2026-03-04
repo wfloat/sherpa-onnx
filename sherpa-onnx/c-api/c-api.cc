@@ -1821,21 +1821,6 @@ static std::string ResolveEmotionEmoji(const char *emotion) {
   return "😐";
 }
 
-static std::string ResolveStyleEmoji(const char *style) {
-  static const std::unordered_map<std::string, std::string> kStyleToEmoji = {
-      {"default", "🙂"},   {"sarcastic", "😏"}, {"playful", "😜"},
-      {"calm", "😌"},      {"dramatic", "🎭"},  {"serious", "🧐"},
-  };
-
-  std::string key = sherpa_onnx::ToLowerAscii(SHERPA_ONNX_OR(style, ""));
-  auto iter = kStyleToEmoji.find(key);
-  if (iter != kStyleToEmoji.end()) {
-    return iter->second;
-  }
-
-  return "🙂";
-}
-
 static std::string UnitFloatToPhoneme(float x) {
   static const std::array<const char *, 10> kPhonemes = {
       "⓪", "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨",
@@ -2027,7 +2012,7 @@ int32_t SherpaOnnxOfflineTtsNumSpeakers(const SherpaOnnxOfflineTts *tts) {
 
 const char *SherpaOnnxOfflineTtsWfloatPrepareText(
     const SherpaOnnxOfflineTts *tts, const char *text, const char *emotion,
-    const char *style, float intensity, float pace) {
+    float intensity) {
   if (!text) {
     SHERPA_ONNX_LOGE("text is nullptr");
     return nullptr;
@@ -2044,8 +2029,8 @@ const char *SherpaOnnxOfflineTtsWfloatPrepareText(
     }
   }
 
-  std::string suffix = ResolveEmotionEmoji(emotion) + ResolveStyleEmoji(style) +
-                       UnitFloatToPhoneme(intensity) + UnitFloatToPhoneme(pace);
+  std::string suffix =
+      ResolveEmotionEmoji(emotion) + UnitFloatToPhoneme(intensity);
 
   for (size_t i = 0; i != prepared.text_clean.size(); ++i) {
     prepared.text_clean[i] += suffix;
@@ -2373,13 +2358,11 @@ int32_t SherpaOnnxOfflineTtsNumSpeakers(const SherpaOnnxOfflineTts *tts) {
 
 const char *SherpaOnnxOfflineTtsWfloatPrepareText(
     const SherpaOnnxOfflineTts *tts, const char *text, const char *emotion,
-    const char *style, float intensity, float pace) {
+    float intensity) {
   (void)tts;
   (void)text;
   (void)emotion;
-  (void)style;
   (void)intensity;
-  (void)pace;
   SHERPA_ONNX_LOGE("TTS is not enabled. Please rebuild sherpa-onnx");
   return nullptr;
 }

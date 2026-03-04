@@ -1215,25 +1215,21 @@ SHERPA_ONNX_API int32_t
 SherpaOnnxOfflineTtsNumSpeakers(const SherpaOnnxOfflineTts *tts);
 
 // Prepare Wfloat text with sentence splitting/cleaning and append
-// emotion/style/intensity/pace symbols to every sentence in text_clean.
+// emotion/intensity symbols to every sentence in text_clean.
 // If tts is a Wfloat TTS instance, returned JSON also includes aligned
 // sentence-level phoneme strings.
 //
 // Valid emotion values:
 //   neutral, joy, sadness, anger, fear, surprise, dismissive, confusion
 //
-// Valid style values:
-//   default, sarcastic, playful, calm, dramatic, serious
-//
-// intensity and pace are expected to be in [0, 1]. Out-of-range values are
-// clamped.
+// intensity is expected to be in [0, 1]. Out-of-range values are clamped.
 //
 // Return value:
 //   A JSON string with keys "text", "text_clean", and "text_phonemes".
 //   The caller must free it with SherpaOnnxOfflineTtsWfloatFreePreparedText().
 SHERPA_ONNX_API const char *SherpaOnnxOfflineTtsWfloatPrepareText(
     const SherpaOnnxOfflineTts *tts, const char *text, const char *emotion,
-    const char *style, float intensity, float pace);
+    float intensity);
 
 SHERPA_ONNX_API void SherpaOnnxOfflineTtsWfloatFreePreparedText(
     const char *prepared_text);

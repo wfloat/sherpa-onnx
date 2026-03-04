@@ -390,7 +390,7 @@ class OfflineTtsWfloatImpl : public OfflineTtsImpl {
  private:
   struct ParsedEmotionText {
     std::string text_without_emotion_groupings;
-    std::vector<std::array<char32_t, 4>> sentence_emotion_slots;
+    std::vector<std::array<char32_t, 2>> sentence_emotion_slots;
   };
 
   static std::string SlotToReadableString(char32_t slot) {
@@ -413,9 +413,7 @@ class OfflineTtsWfloatImpl : public OfflineTtsImpl {
       os << '\n'
          << '[' << i << "] "
          << "emotion=" << SlotToReadableString(slots[0]) << ", "
-         << "style=" << SlotToReadableString(slots[1]) << ", "
-         << "arousal=" << SlotToReadableString(slots[2]) << ", "
-         << "pace=" << SlotToReadableString(slots[3]);
+         << "intensity=" << SlotToReadableString(slots[1]);
     }
 
     return os.str();
@@ -441,20 +439,6 @@ class OfflineTtsWfloatImpl : public OfflineTtsImpl {
     }
   }
 
-  static bool IsStyleCodepoint(char32_t c) {
-    switch (c) {
-      case U'🙂':
-      case U'😏':
-      case U'😜':
-      case U'😌':
-      case U'🎭':
-      case U'🧐':
-        return true;
-      default:
-        return false;
-    }
-  }
-
   static bool IsCircledDigitCodepoint(char32_t c) {
     switch (c) {
       case U'⓪':
@@ -474,16 +458,15 @@ class OfflineTtsWfloatImpl : public OfflineTtsImpl {
   }
 
   static bool HasEmotionGroupingAt(const std::u32string &text, size_t i) {
-    if (i + 4 >= text.size()) {
+    if (i + 2 >= text.size()) {
       return false;
     }
 
-    return IsEmotionCodepoint(text[i + 1]) && IsStyleCodepoint(text[i + 2]) &&
-           IsCircledDigitCodepoint(text[i + 3]) &&
-           IsCircledDigitCodepoint(text[i + 4]);
+    return IsEmotionCodepoint(text[i + 1]) &&
+           IsCircledDigitCodepoint(text[i + 2]);
   }
 
-  static bool HasAllEmotionSlots(const std::array<char32_t, 4> &slots) {
+  static bool HasAllEmotionSlots(const std::array<char32_t, 2> &slots) {
     return std::all_of(slots.begin(), slots.end(),
                        [](char32_t c) { return c != U'\0'; });
   }
@@ -554,13 +537,12 @@ class OfflineTtsWfloatImpl : public OfflineTtsImpl {
     return -1;
   }
 
-  std::vector<std::array<char32_t, 4>> SplitLongSentencesIfNeeded(
+  std::vector<std::array<char32_t, 2>> SplitLongSentencesIfNeeded(
       std::vector<TokenIDs> *token_ids,
-      const std::vector<std::array<char32_t, 4>> &sentence_emotion_slots,
+      const std::vector<std::array<char32_t, 2>> &sentence_emotion_slots,
       int32_t max_sentence_len) const {
-    std::vector<std::array<char32_t, 4>> aligned_slots(token_ids->size(),
-                                                       {U'\0', U'\0', U'\0',
-                                                        U'\0'});
+    std::vector<std::array<char32_t, 2>> aligned_slots(token_ids->size(),
+                                                       {U'\0', U'\0'});
     const size_t n = std::min(aligned_slots.size(), sentence_emotion_slots.size());
     for (size_t i = 0; i < n; ++i) {
       aligned_slots[i] = sentence_emotion_slots[i];
@@ -569,7 +551,7 @@ class OfflineTtsWfloatImpl : public OfflineTtsImpl {
     std::vector<TokenIDs> split_ids;
     split_ids.reserve(token_ids->size());
 
-    std::vector<std::array<char32_t, 4>> split_slots;
+    std::vector<std::array<char32_t, 2>> split_slots;
     split_slots.reserve(token_ids->size());
 
     const int64_t bos_id = GetTokenId("^");
@@ -580,7 +562,7 @@ class OfflineTtsWfloatImpl : public OfflineTtsImpl {
       auto &t = (*token_ids)[i];
       const auto &slots = aligned_slots[i];
 
-      int32_t emotion_extra = HasAllEmotionSlots(slots) ? 4 : 0;
+      int32_t emotion_extra = HasAllEmotionSlots(slots) ? 2 : 0;
       if (static_cast<int32_t>(t.tokens.size()) + emotion_extra <=
           max_sentence_len) {
         split_ids.push_back(std::move(t));
@@ -717,7 +699,7 @@ class OfflineTtsWfloatImpl : public OfflineTtsImpl {
   }
 
   std::vector<int64_t> ConvertEmotionSlotsToTokenIds(
-      const std::array<char32_t, 4> &slots) const {
+      const std::array<char32_t, 2> &slots) const {
     std::vector<int64_t> ids;
     ids.reserve(slots.size());
 
@@ -745,7 +727,7 @@ class OfflineTtsWfloatImpl : public OfflineTtsImpl {
 
   void AppendEmotionSlotsToTokenIds(
       std::vector<TokenIDs> *token_ids,
-      const std::vector<std::array<char32_t, 4>> &sentence_emotion_slots) const {
+      const std::vector<std::array<char32_t, 2>> &sentence_emotion_slots) const {
     if (!token_ids || token_ids->empty() || sentence_emotion_slots.empty() ||
         emotion_token2id_.empty()) {
       return;
@@ -810,14 +792,12 @@ class OfflineTtsWfloatImpl : public OfflineTtsImpl {
         continue;
       }
 
-      std::array<char32_t, 4> slots = {U'\0', U'\0', U'\0', U'\0'};
+      std::array<char32_t, 2> slots = {U'\0', U'\0'};
       if (HasEmotionGroupingAt(u32, i)) {
         slots[0] = u32[i + 1];
         slots[1] = u32[i + 2];
-        slots[2] = u32[i + 3];
-        slots[3] = u32[i + 4];
 
-        i += 4;  // skip 4-symbol emotion grouping
+        i += 2;  // skip 2-symbol emotion grouping
         if (i + 1 < u32.size() && u32[i + 1] == U' ') {
           // Keep the sentence separator space if present.
           stripped.push_back(U' ');
