@@ -92,8 +92,10 @@ PYBIND11_MODULE(_sherpa_onnx, m) {
   m.attr("OfflineTtsWfloatModelConfig") = py::none();
   m.attr("OfflineTtsZipvoiceModelConfig") = py::none();
   m.attr("GeneratedAudio") = py::none();
+  m.attr("WfloatPreparedText") = py::none();
   m.attr("OfflineTtsConfig") = py::none();
   m.attr("OfflineTts") = py::none();
+  m.attr("prepare_wfloat_text") = py::none();
   m.attr("SentencePieceTokenizer") = py::none();
 #endif
 

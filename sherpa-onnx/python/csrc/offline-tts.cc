@@ -26,6 +26,22 @@ static void PybindGeneratedAudio(py::module *m) {
       });
 }
 
+static void PybindWfloatPreparedText(py::module *m) {
+  using PyClass = WfloatPreparedText;
+  py::class_<PyClass>(*m, "WfloatPreparedText")
+      .def(py::init<>())
+      .def_readwrite("text", &PyClass::text)
+      .def_readwrite("text_clean", &PyClass::text_clean)
+      .def_readwrite("text_phonemes", &PyClass::text_phonemes)
+      .def("__str__", [](const PyClass &self) {
+        std::ostringstream os;
+        os << "WfloatPreparedText(num_text=" << self.text.size()
+           << ", num_text_clean=" << self.text_clean.size()
+           << ", num_text_phonemes=" << self.text_phonemes.size() << ")";
+        return os.str();
+      });
+}
+
 static void PybindGenerationConfig(py::module *m) {
   using PyClass = GenerationConfig;
 
@@ -65,7 +81,11 @@ static void PybindOfflineTtsConfig(py::module *m) {
 void PybindOfflineTts(py::module *m) {
   PybindOfflineTtsConfig(m);
   PybindGeneratedAudio(m);
+  PybindWfloatPreparedText(m);
   PybindGenerationConfig(m);
+
+  m->def("prepare_wfloat_text", &PrepareWfloatText, py::arg("text"),
+         py::arg("emotion") = "", py::arg("intensity") = 0.0f);
 
   using PyClass = OfflineTts;
   py::class_<PyClass>(*m, "OfflineTts")
@@ -73,6 +93,11 @@ void PybindOfflineTts(py::module *m) {
            py::call_guard<py::gil_scoped_release>())
       .def_property_readonly("sample_rate", &PyClass::SampleRate)
       .def_property_readonly("num_speakers", &PyClass::NumSpeakers)
+      .def("convert_text_to_phonemes", &PyClass::ConvertTextToPhonemes,
+           py::arg("text"))
+      .def("prepare_wfloat_text", &PyClass::PrepareWfloatText,
+           py::arg("text"), py::arg("emotion") = "",
+           py::arg("intensity") = 0.0f)
       .def(
           "generate",
           [](const PyClass &self, const std::string &text, int64_t sid,

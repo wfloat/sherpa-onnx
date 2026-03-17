@@ -23,6 +23,7 @@ set(py_test_files
   test_feature_extractor_config.py
   test_keyword_spotter.py
   test_offline_recognizer.py
+  test_offline_tts.py
   test_online_recognizer.py
   test_online_transducer_model_config.py
   test_speaker_recognition.py
@@ -32,4 +33,3 @@ set(py_test_files
 foreach(source IN LISTS py_test_files)
   sherpa_onnx_add_py_test(${source})
 endforeach()
-

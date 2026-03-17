@@ -64,6 +64,16 @@ struct GeneratedAudio {
   GeneratedAudio ScaleSilence(float scale) const;
 };
 
+struct WfloatPreparedText {
+  std::vector<std::string> text;
+  std::vector<std::string> text_clean;
+  std::vector<std::string> text_phonemes;
+};
+
+WfloatPreparedText PrepareWfloatText(const std::string &text,
+                                     const std::string &emotion = "",
+                                     float intensity = 0.0f);
+
 struct GenerationConfig {
   float silence_scale = 0.2;
 
@@ -157,6 +167,12 @@ class OfflineTts {
   // Currently implemented only for Wfloat models.
   std::vector<std::string> ConvertTextToPhonemes(
       const std::vector<std::string> &text) const;
+
+  // Split/clean text for Wfloat TTS and append the requested
+  // emotion/intensity markers to every sentence.
+  WfloatPreparedText PrepareWfloatText(const std::string &text,
+                                       const std::string &emotion = "",
+                                       float intensity = 0.0f) const;
 
  private:
   std::unique_ptr<OfflineTtsImpl> impl_;

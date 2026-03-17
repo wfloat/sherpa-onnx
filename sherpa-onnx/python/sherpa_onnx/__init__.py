@@ -74,9 +74,11 @@ from sherpa_onnx.lib._sherpa_onnx import (
     TenVadModelConfig,
     VadModel,
     VadModelConfig,
+    WfloatPreparedText,
     VoiceActivityDetector,
     git_date,
     git_sha1,
+    prepare_wfloat_text,
     version,
     write_wave,
 )
