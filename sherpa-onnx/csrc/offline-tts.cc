@@ -598,6 +598,13 @@ WfloatPreparedText PrepareWfloatTextImpl(
   WfloatPreparedText prepared = SplitIntoWfloatSentences(text);
   prepared.text_phonemes.resize(prepared.text_clean.size());
 
+  bool add_terminal_punct_to_last = !prepared.text_clean.empty() &&
+                                    !EndsWithTerminalPunct(
+                                        prepared.text_clean.back());
+  if (add_terminal_punct_to_last) {
+    prepared.text_clean.back() += ".";
+  }
+
   if (phoneme_converter) {
     auto phonemes = phoneme_converter(prepared.text_clean);
     size_t n = std::min(phonemes.size(), prepared.text_phonemes.size());
@@ -608,6 +615,11 @@ WfloatPreparedText PrepareWfloatTextImpl(
 
   std::string suffix = ResolveEmotionEmoji(emotion) + UnitFloatToPhoneme(intensity);
   for (size_t i = 0; i != prepared.text_clean.size(); ++i) {
+    if (add_terminal_punct_to_last && i + 1 == prepared.text_phonemes.size() &&
+        !EndsWithTerminalPunct(prepared.text_phonemes[i])) {
+      prepared.text_phonemes[i] += ".";
+    }
+
     prepared.text_clean[i] += suffix;
     prepared.text_phonemes[i] += suffix;
   }
