@@ -14,6 +14,17 @@ data class OfflineTtsVitsModelConfig(
     var lengthScale: Float = 1.0f,
 )
 
+data class OfflineTtsWfloatModelConfig(
+    var model: String = "",
+    var lexicon: String = "",
+    var tokens: String = "",
+    var dataDir: String = "",
+    var dictDir: String = "",
+    var noiseScale: Float = 0.667f,
+    var noiseScaleW: Float = 0.8f,
+    var lengthScale: Float = 1.0f,
+)
+
 data class OfflineTtsMatchaModelConfig(
     var acousticModel: String = "",
     var vocoder: String = "",
@@ -69,6 +80,7 @@ data class OfflineTtsPocketModelConfig(
 
 data class OfflineTtsModelConfig(
     var vits: OfflineTtsVitsModelConfig = OfflineTtsVitsModelConfig(),
+    var wfloat: OfflineTtsWfloatModelConfig = OfflineTtsWfloatModelConfig(),
     var matcha: OfflineTtsMatchaModelConfig = OfflineTtsMatchaModelConfig(),
     var kokoro: OfflineTtsKokoroModelConfig = OfflineTtsKokoroModelConfig(),
     var kitten: OfflineTtsKittenModelConfig = OfflineTtsKittenModelConfig(),
@@ -85,6 +97,12 @@ data class OfflineTtsConfig(
     var ruleFars: String = "",
     var maxNumSentences: Int = 1,
     var silenceScale: Float = 0.2f,
+)
+
+data class WfloatPreparedText(
+    val text: List<String>,
+    val textClean: List<String>,
+    val textPhonemes: List<String>,
 )
 
 class GeneratedAudio(
@@ -111,6 +129,30 @@ data class GenerationConfig(
     var numSteps: Int = 5,
     var extra: Map<String, String>? = null
 )
+
+object OfflineTtsWfloatTextProcessor {
+    init {
+        System.loadLibrary("sherpa-onnx-jni")
+    }
+
+    external fun prepareWfloatTextImpl(
+        text: String,
+        emotion: String = "",
+        intensity: Float = 0.0f
+    ): WfloatPreparedText
+}
+
+fun prepareWfloatText(
+    text: String,
+    emotion: String = "",
+    intensity: Float = 0.0f
+): WfloatPreparedText {
+    return OfflineTtsWfloatTextProcessor.prepareWfloatTextImpl(
+        text = text,
+        emotion = emotion,
+        intensity = intensity
+    )
+}
 
 class OfflineTts(
     assetManager: AssetManager? = null,
@@ -166,6 +208,25 @@ class OfflineTts(
         callback: (samples: FloatArray) -> Int
     ): GeneratedAudio {
         return generateWithConfigImpl(ptr, text, config, callback)
+    }
+
+    fun convertTextToPhonemes(
+        text: List<String>
+    ): List<String> {
+        return convertTextToPhonemesImpl(ptr, text.toTypedArray()).asList()
+    }
+
+    fun prepareWfloatText(
+        text: String,
+        emotion: String = "",
+        intensity: Float = 0.0f
+    ): WfloatPreparedText {
+        return prepareWfloatTextImpl(
+            ptr = ptr,
+            text = text,
+            emotion = emotion,
+            intensity = intensity
+        )
     }
 
     fun allocate(assetManager: AssetManager? = null) {
@@ -234,6 +295,18 @@ class OfflineTts(
         callback: ((samples: FloatArray) -> Int)?
     ): GeneratedAudio
 
+    private external fun convertTextToPhonemesImpl(
+        ptr: Long,
+        text: Array<String>
+    ): Array<String>
+
+    private external fun prepareWfloatTextImpl(
+        ptr: Long,
+        text: String,
+        emotion: String = "",
+        intensity: Float = 0.0f
+    ): WfloatPreparedText
+
     companion object {
         init {
             System.loadLibrary("sherpa-onnx-jni")
@@ -256,7 +329,8 @@ fun getOfflineTtsConfig(
     ruleFsts: String,
     ruleFars: String,
     numThreads: Int? = null,
-    isKitten: Boolean = false
+    isKitten: Boolean = false,
+    isWfloat: Boolean = false
 ): OfflineTtsConfig {
     // For Matcha TTS, please set
     // acousticModelName, vocoder
@@ -266,6 +340,9 @@ fun getOfflineTtsConfig(
 
     // For Kitten TTS, please set
     // modelName, voices, isKitten
+
+    // For Wfloat TTS, please set
+    // modelName, isWfloat
 
     // For VITS, please set
     // modelName
@@ -291,7 +368,7 @@ fun getOfflineTtsConfig(
         throw IllegalArgumentException("Please provide vocoder for Matcha TTS")
     }
 
-    val vits = if (modelName.isNotEmpty() && voices.isEmpty()) {
+    val vits = if (modelName.isNotEmpty() && voices.isEmpty() && !isWfloat) {
         OfflineTtsVitsModelConfig(
             model = "$modelDir/$modelName",
             lexicon = "$modelDir/$lexicon",
@@ -300,6 +377,18 @@ fun getOfflineTtsConfig(
         )
     } else {
         OfflineTtsVitsModelConfig()
+    }
+
+    val wfloat = if (modelName.isNotEmpty() && voices.isEmpty() && isWfloat) {
+        OfflineTtsWfloatModelConfig(
+            model = "$modelDir/$modelName",
+            lexicon = "$modelDir/$lexicon",
+            tokens = "$modelDir/tokens.txt",
+            dataDir = dataDir,
+            dictDir = dictDir,
+        )
+    } else {
+        OfflineTtsWfloatModelConfig()
     }
 
     val matcha = if (acousticModelName.isNotEmpty()) {
@@ -344,6 +433,7 @@ fun getOfflineTtsConfig(
     return OfflineTtsConfig(
         model = OfflineTtsModelConfig(
             vits = vits,
+            wfloat = wfloat,
             matcha = matcha,
             kokoro = kokoro,
             kitten = kitten,

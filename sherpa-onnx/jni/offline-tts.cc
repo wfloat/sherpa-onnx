@@ -146,6 +146,36 @@ static OfflineTtsConfig GetOfflineTtsConfig(JNIEnv *env, jobject config,
   SHERPA_ONNX_JNI_READ_FLOAT(ans.model.vits.length_scale, lengthScale, vits_cls,
                              vits);
 
+  // wfloat
+  fid = env->GetFieldID(model_config_cls, "wfloat",
+                        "Lcom/k2fsa/sherpa/onnx/OfflineTtsWfloatModelConfig;");
+  jobject wfloat = env->GetObjectField(model, fid);
+  jclass wfloat_cls = env->GetObjectClass(wfloat);
+
+  SHERPA_ONNX_JNI_READ_STRING(ans.model.wfloat.model, model, wfloat_cls,
+                              wfloat);
+
+  SHERPA_ONNX_JNI_READ_STRING(ans.model.wfloat.lexicon, lexicon, wfloat_cls,
+                              wfloat);
+
+  SHERPA_ONNX_JNI_READ_STRING(ans.model.wfloat.tokens, tokens, wfloat_cls,
+                              wfloat);
+
+  SHERPA_ONNX_JNI_READ_STRING(ans.model.wfloat.data_dir, dataDir, wfloat_cls,
+                              wfloat);
+
+  SHERPA_ONNX_JNI_READ_STRING(ans.model.wfloat.dict_dir, dictDir, wfloat_cls,
+                              wfloat);
+
+  SHERPA_ONNX_JNI_READ_FLOAT(ans.model.wfloat.noise_scale, noiseScale,
+                             wfloat_cls, wfloat);
+
+  SHERPA_ONNX_JNI_READ_FLOAT(ans.model.wfloat.noise_scale_w, noiseScaleW,
+                             wfloat_cls, wfloat);
+
+  SHERPA_ONNX_JNI_READ_FLOAT(ans.model.wfloat.length_scale, lengthScale,
+                             wfloat_cls, wfloat);
+
   // matcha
   fid = env->GetFieldID(model_config_cls, "matcha",
                         "Lcom/k2fsa/sherpa/onnx/OfflineTtsMatchaModelConfig;");
@@ -265,6 +295,8 @@ static OfflineTtsConfig GetOfflineTtsConfig(JNIEnv *env, jobject config,
   env->DeleteLocalRef(model);
   env->DeleteLocalRef(vits);
   env->DeleteLocalRef(vits_cls);
+  env->DeleteLocalRef(wfloat);
+  env->DeleteLocalRef(wfloat_cls);
   env->DeleteLocalRef(matcha);
   env->DeleteLocalRef(matcha_cls);
   env->DeleteLocalRef(kokoro);
@@ -314,6 +346,128 @@ static jobject CreateAudioObject(JNIEnv *env, const std::vector<float> &samples,
   env->DeleteLocalRef(gen_audio_cls);
 
   return gen_audio_obj;
+}
+
+static jobject CreateStringList(JNIEnv *env,
+                                const std::vector<std::string> &items) {
+  jclass array_list_cls = env->FindClass("java/util/ArrayList");
+  if (!array_list_cls) {
+    return nullptr;
+  }
+
+  jmethodID ctor = env->GetMethodID(array_list_cls, "<init>", "(I)V");
+  jmethodID add =
+      env->GetMethodID(array_list_cls, "add", "(Ljava/lang/Object;)Z");
+  if (!ctor || !add) {
+    env->DeleteLocalRef(array_list_cls);
+    return nullptr;
+  }
+
+  jobject list = env->NewObject(array_list_cls, ctor, items.size());
+  if (!list) {
+    env->DeleteLocalRef(array_list_cls);
+    return nullptr;
+  }
+
+  for (const auto &item : items) {
+    jstring s = env->NewStringUTF(item.c_str());
+    env->CallBooleanMethod(list, add, s);
+    env->DeleteLocalRef(s);
+  }
+
+  env->DeleteLocalRef(array_list_cls);
+  return list;
+}
+
+static jobject CreateWfloatPreparedTextObject(
+    JNIEnv *env, const sherpa_onnx::WfloatPreparedText &prepared) {
+  jobject text = CreateStringList(env, prepared.text);
+  jobject text_clean = CreateStringList(env, prepared.text_clean);
+  jobject text_phonemes = CreateStringList(env, prepared.text_phonemes);
+  if (!text || !text_clean || !text_phonemes) {
+    env->DeleteLocalRef(text);
+    env->DeleteLocalRef(text_clean);
+    env->DeleteLocalRef(text_phonemes);
+    return nullptr;
+  }
+
+  jclass cls = env->FindClass("com/k2fsa/sherpa/onnx/WfloatPreparedText");
+  if (!cls) {
+    env->DeleteLocalRef(text);
+    env->DeleteLocalRef(text_clean);
+    env->DeleteLocalRef(text_phonemes);
+    return nullptr;
+  }
+
+  jmethodID ctor = env->GetMethodID(
+      cls, "<init>", "(Ljava/util/List;Ljava/util/List;Ljava/util/List;)V");
+  if (!ctor) {
+    env->DeleteLocalRef(text);
+    env->DeleteLocalRef(text_clean);
+    env->DeleteLocalRef(text_phonemes);
+    env->DeleteLocalRef(cls);
+    return nullptr;
+  }
+
+  jobject obj = env->NewObject(cls, ctor, text, text_clean, text_phonemes);
+
+  env->DeleteLocalRef(text);
+  env->DeleteLocalRef(text_clean);
+  env->DeleteLocalRef(text_phonemes);
+  env->DeleteLocalRef(cls);
+
+  return obj;
+}
+
+static jobjectArray CreateStringArray(JNIEnv *env,
+                                      const std::vector<std::string> &items) {
+  jclass string_cls = env->FindClass("java/lang/String");
+  if (!string_cls) {
+    return nullptr;
+  }
+
+  jobjectArray ans = env->NewObjectArray(items.size(), string_cls, nullptr);
+  if (!ans) {
+    env->DeleteLocalRef(string_cls);
+    return nullptr;
+  }
+
+  for (jsize i = 0; i != static_cast<jsize>(items.size()); ++i) {
+    jstring s = env->NewStringUTF(items[i].c_str());
+    env->SetObjectArrayElement(ans, i, s);
+    env->DeleteLocalRef(s);
+  }
+
+  env->DeleteLocalRef(string_cls);
+  return ans;
+}
+
+static std::vector<std::string> ToStringVector(JNIEnv *env,
+                                               jobjectArray items) {
+  std::vector<std::string> ans;
+  if (!items) {
+    return ans;
+  }
+
+  jsize n = env->GetArrayLength(items);
+  ans.reserve(n);
+
+  for (jsize i = 0; i != n; ++i) {
+    auto s = static_cast<jstring>(env->GetObjectArrayElement(items, i));
+    if (!s) {
+      ans.emplace_back();
+      continue;
+    }
+
+    const char *p = env->GetStringUTFChars(s, nullptr);
+    ans.emplace_back(p ? p : "");
+    if (p) {
+      env->ReleaseStringUTFChars(s, p);
+    }
+    env->DeleteLocalRef(s);
+  }
+
+  return ans;
 }
 
 static int32_t CallCallback(JNIEnv *env, jobject callback,
@@ -501,6 +655,58 @@ Java_com_k2fsa_sherpa_onnx_OfflineTts_generateWithConfigImpl(
   env->ReleaseStringUTFChars(text, p_text);
 
   return CreateAudioObject(env, audio.samples, audio.sample_rate);
+}
+
+SHERPA_ONNX_EXTERN_C
+JNIEXPORT jobjectArray JNICALL
+Java_com_k2fsa_sherpa_onnx_OfflineTts_convertTextToPhonemesImpl(
+    JNIEnv *env, jobject /*obj*/, jlong ptr, jobjectArray text) {
+  auto tts = reinterpret_cast<sherpa_onnx::OfflineTts *>(ptr);
+  auto items = ToStringVector(env, text);
+  auto phonemes = tts->ConvertTextToPhonemes(items);
+  return CreateStringArray(env, phonemes);
+}
+
+SHERPA_ONNX_EXTERN_C
+JNIEXPORT jobject JNICALL Java_com_k2fsa_sherpa_onnx_OfflineTts_prepareWfloatTextImpl(
+    JNIEnv *env, jobject /*obj*/, jlong ptr, jstring text, jstring emotion,
+    jfloat intensity) {
+  const char *p_text = env->GetStringUTFChars(text, nullptr);
+  const char *p_emotion = env->GetStringUTFChars(emotion, nullptr);
+
+  auto prepared =
+      reinterpret_cast<sherpa_onnx::OfflineTts *>(ptr)->PrepareWfloatText(
+          p_text ? p_text : "", p_emotion ? p_emotion : "", intensity);
+
+  if (p_text) {
+    env->ReleaseStringUTFChars(text, p_text);
+  }
+  if (p_emotion) {
+    env->ReleaseStringUTFChars(emotion, p_emotion);
+  }
+
+  return CreateWfloatPreparedTextObject(env, prepared);
+}
+
+SHERPA_ONNX_EXTERN_C
+JNIEXPORT jobject JNICALL
+Java_com_k2fsa_sherpa_onnx_OfflineTtsWfloatTextProcessor_prepareWfloatTextImpl(
+    JNIEnv *env, jobject /*obj*/, jstring text, jstring emotion,
+    jfloat intensity) {
+  const char *p_text = env->GetStringUTFChars(text, nullptr);
+  const char *p_emotion = env->GetStringUTFChars(emotion, nullptr);
+
+  auto prepared = sherpa_onnx::PrepareWfloatText(
+      p_text ? p_text : "", p_emotion ? p_emotion : "", intensity);
+
+  if (p_text) {
+    env->ReleaseStringUTFChars(text, p_text);
+  }
+  if (p_emotion) {
+    env->ReleaseStringUTFChars(emotion, p_emotion);
+  }
+
+  return CreateWfloatPreparedTextObject(env, prepared);
 }
 
 SHERPA_ONNX_EXTERN_C
