@@ -43,7 +43,7 @@ def get_package_version():
     return latest_version
 
 
-package_name = "sherpa_onnx"
+package_name = "wfloat-sherpa-onnx"
 
 with open("sherpa-onnx/python/sherpa_onnx/__init__.py", "a") as f:
     f.write(f"__version__ = '{get_package_version()}'\n")
@@ -73,10 +73,10 @@ def get_binaries_to_install():
 
 setuptools.setup(
     name=package_name,
-    python_requires=">=3.7",
+    python_requires=">=3.9",
     version=get_package_version(),
-    author="The sherpa-onnx development team",
-    author_email="dpovey@gmail.com",
+    author="Wfloat development team",
+    author_email="mitch@wfloat.com",
     package_dir={
         "sherpa_onnx": "sherpa-onnx/python/sherpa_onnx",
     },
