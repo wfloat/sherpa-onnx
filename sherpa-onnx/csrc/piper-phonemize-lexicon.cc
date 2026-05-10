@@ -5,6 +5,7 @@
 #include "sherpa-onnx/csrc/piper-phonemize-lexicon.h"
 
 #include <codecvt>
+#include <cstdlib>
 #include <fstream>
 #include <locale>
 #include <map>
@@ -104,6 +105,11 @@ static void LogPhonemizeEspeakOutput(
   }
 }
 
+static bool ShouldLogPhonemizeEspeakOutput() {
+  const char *value = std::getenv("SHERPA_ONNX_LOG_PHONEMIZE");
+  return value != nullptr && value[0] != '\0';
+}
+
 void CallPhonemizeEspeak(const std::string &text,
                          piper::eSpeakPhonemeConfig &config,  // NOLINT
                          std::vector<std::vector<piper::Phoneme>> *phonemes) {
@@ -113,7 +119,9 @@ void CallPhonemizeEspeak(const std::string &text,
 
   // keep multi threads from calling into piper::phonemize_eSpeak
   piper::phonemize_eSpeak(text, config, *phonemes);
-  LogPhonemizeEspeakOutput(text, *phonemes);
+  if (ShouldLogPhonemizeEspeakOutput()) {
+    LogPhonemizeEspeakOutput(text, *phonemes);
+  }
 }
 
 static std::unordered_map<char32_t, int32_t> ReadTokens(std::istream &is) {
