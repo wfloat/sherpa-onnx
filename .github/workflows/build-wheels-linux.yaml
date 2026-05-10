@@ -301,7 +301,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python-version: ["cp38", "cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]
+        python-version: ["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]
         manylinux: [manylinux2014] #, manylinux_2_28]
 
     steps:
@@ -417,14 +417,14 @@ jobs:
           twine upload ./wheelhouse/*.whl
 
       - name: Build sdist
-        if: matrix.python-version == 'cp38' && matrix.manylinux == 'manylinux2014'
+        if: ${{ false }}
         shell: bash
         run: |
           python3 setup.py sdist
           ls -l dist/*
 
       - name: Publish sdist to PyPI
-        if: matrix.python-version == 'cp38' && matrix.manylinux == 'manylinux2014'
+        if: ${{ false }}
         env:
           TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
