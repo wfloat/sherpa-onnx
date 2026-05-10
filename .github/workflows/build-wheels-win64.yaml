@@ -211,6 +211,7 @@ jobs:
           which sherpa-onnx-vad
 
       - name: Publish to huggingface
+        if: ${{ false }}
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         uses: nick-fields/retry@v3
@@ -247,7 +248,7 @@ jobs:
             git push https://csukuangfj2:$HF_TOKEN@huggingface.co/csukuangfj2/sherpa-onnx-wheels main
 
       - name: Publish wheels to PyPI ${{ github.event.inputs.publish_sherpa_onnx_bin }}
-        if: ${{ (github.event.inputs.publish_sherpa_onnx_bin || 'true') == 'true' }}
+        if: ${{ false }}
         env:
           TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
@@ -309,6 +310,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
       - name: Publish to huggingface
+        if: ${{ false }}
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         uses: nick-fields/retry@v3
@@ -345,6 +347,7 @@ jobs:
             git push https://csukuangfj2:$HF_TOKEN@huggingface.co/csukuangfj2/sherpa-onnx-wheels main
 
       - name: Publish wheels to PyPI
+        if: ${{ false }}
         shell: bash
         env:
           TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
